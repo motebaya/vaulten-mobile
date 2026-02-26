@@ -1,6 +1,6 @@
-# Vault App - Feature Showcase
+# Vaulten - Feature Showcase
 
-This document showcases the key features of Vault App through video demonstrations. Each demo highlights specific functionality and user workflows.
+This document showcases the key features of Vaulten through video demonstrations. Each demo highlights specific functionality and user workflows.
 
 ---
 
@@ -225,4 +225,4 @@ For more information, visit the [GitHub repository](https://github.com/motebaya/
 
 ---
 
-\_All videos recorded on Android device running Vault App v2.1.0
+\_All videos recorded on Android device running Vaulten v2.1.0

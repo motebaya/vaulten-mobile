@@ -17,11 +17,11 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.vaultapp"
+    namespace = "com.motebaya.vaulten"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.vaultapp"
+        applicationId = "com.motebaya.vaulten"
         minSdk = 26
         targetSdk = 35
         versionCode = 7
@@ -32,6 +32,34 @@ android {
         // Vector drawable support for older APIs
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    // Split APKs by ABI for smaller per-device downloads
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
+    // Assign unique versionCode per ABI so each split APK is distinguishable
+    val abiCodes = mapOf(
+        "armeabi-v7a" to 1,
+        "arm64-v8a" to 2,
+        "x86_64" to 3
+    )
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.all {
+            val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
+            val abiFilter = output.getFilter(com.android.build.OutputFile.ABI)
+            // universal = 0, per-abi = abiCodes[abi]
+            val abiCode = abiCodes[abiFilter] ?: 0
+            output.versionCodeOverride = abiCode * 1000 + (variant.versionCode ?: 0)
         }
     }
 

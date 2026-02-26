@@ -1,5 +1,5 @@
 # ============================================================================
-# ProGuard/R8 rules for Vault - Secure Password Manager
+# ProGuard/R8 rules for Vaulten - Secure Password Manager
 # Production-optimized configuration for security-sensitive application
 # ============================================================================
 
@@ -34,19 +34,19 @@
 # ============================================================================
 
 # Keep application entry points
--keep class com.vaultapp.VaultApplication { *; }
--keep class com.vaultapp.MainActivity { *; }
+-keep class com.motebaya.vaulten.VaultApplication { *; }
+-keep class com.motebaya.vaulten.MainActivity { *; }
 
 # Keep all entities (Room needs them)
--keep class com.vaultapp.domain.entity.** { *; }
--keep class com.vaultapp.data.local.entity.** { *; }
+-keep class com.motebaya.vaulten.domain.entity.** { *; }
+-keep class com.motebaya.vaulten.data.local.entity.** { *; }
 
 # Keep data classes used for serialization
--keep class com.vaultapp.data.session.PendingExportImportFlow { *; }
--keep class com.vaultapp.data.session.ExportResultData { *; }
--keep class com.vaultapp.domain.repository.BackupPreview { *; }
--keep class com.vaultapp.domain.repository.BackupMetadata { *; }
--keep class com.vaultapp.domain.repository.ExportResult { *; }
+-keep class com.motebaya.vaulten.data.session.PendingExportImportFlow { *; }
+-keep class com.motebaya.vaulten.data.session.ExportResultData { *; }
+-keep class com.motebaya.vaulten.domain.repository.BackupPreview { *; }
+-keep class com.motebaya.vaulten.domain.repository.BackupMetadata { *; }
+-keep class com.motebaya.vaulten.domain.repository.ExportResult { *; }
 
 # ============================================================================
 # HILT / DAGGER
@@ -80,7 +80,7 @@
 -keep @androidx.room.Database class * { *; }
 
 # Room type converters
--keep class com.vaultapp.data.local.Converters { *; }
+-keep class com.motebaya.vaulten.data.local.Converters { *; }
 
 # Keep room schemas
 -keepclassmembers class * {

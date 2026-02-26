@@ -1,5 +1,5 @@
 # ============================================================================
-# Production Build Script for Vault App
+# Production Build Script for Vaulten App
 # ============================================================================
 # This script helps you build a production-ready APK
 # Run from the project root directory
@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 
 function Show-Help {
     Write-Host ""
-    Write-Host "Vault App - Production Build Script" -ForegroundColor Cyan
+    Write-Host "Vaulten App - Production Build Script" -ForegroundColor Cyan
     Write-Host "====================================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Usage: .\build_prod.ps1 [options]" -ForegroundColor Yellow
@@ -54,14 +54,14 @@ function New-ReleaseKeystore {
     Write-Host "============================" -ForegroundColor Cyan
     Write-Host ""
     
-    if (Test-Path "vault-release.jks") {
-        Write-Host "WARNING: vault-release.jks already exists!" -ForegroundColor Yellow
+    if (Test-Path "vaulten-release.jks") {
+        Write-Host "WARNING: vaulten-release.jks already exists!" -ForegroundColor Yellow
         $confirm = Read-Host "Do you want to overwrite it? (y/N)"
         if ($confirm -ne "y" -and $confirm -ne "Y") {
             Write-Host "Aborted." -ForegroundColor Red
             return
         }
-        Remove-Item "vault-release.jks" -Force
+        Remove-Item "vaulten-release.jks" -Force
     }
     
     Write-Host "Please provide the following information:" -ForegroundColor Yellow
@@ -88,7 +88,7 @@ function New-ReleaseKeystore {
     $keytoolArgs = @(
         "-genkey",
         "-v",
-        "-keystore", "vault-release.jks",
+        "-keystore", "vaulten-release.jks",
         "-keyalg", "RSA",
         "-keysize", "2048",
         "-validity", "10000",
@@ -111,7 +111,7 @@ function New-ReleaseKeystore {
 # Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 # DO NOT COMMIT THIS FILE TO VERSION CONTROL
 
-storeFile=vault-release.jks
+storeFile=vaulten-release.jks
 storePassword=$storePasswordText
 keyAlias=vault
 keyPassword=$keyPasswordText
@@ -122,7 +122,7 @@ keyPassword=$keyPasswordText
         Write-Host "Created keystore.properties" -ForegroundColor Green
         Write-Host ""
         Write-Host "IMPORTANT: Keep these files safe and backed up!" -ForegroundColor Yellow
-        Write-Host "  - vault-release.jks (keystore file)" -ForegroundColor Yellow
+        Write-Host "  - vaulten-release.jks (keystore file)" -ForegroundColor Yellow
         Write-Host "  - keystore.properties (passwords)" -ForegroundColor Yellow
         Write-Host ""
         Write-Host "These files are in .gitignore and will NOT be committed." -ForegroundColor Cyan
@@ -146,8 +146,8 @@ function Build-Release {
         return
     }
     
-    if (-not (Test-Path "vault-release.jks")) {
-        Write-Host "ERROR: vault-release.jks not found!" -ForegroundColor Red
+    if (-not (Test-Path "vaulten-release.jks")) {
+        Write-Host "ERROR: vaulten-release.jks not found!" -ForegroundColor Red
         Write-Host "Run with -GenerateKeystore first to create the keystore" -ForegroundColor Yellow
         return
     }

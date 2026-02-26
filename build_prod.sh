@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Production Build Script for Vault App
+# Production Build Script for Vaulten App
 # ============================================================================
 # This script helps you build a production-ready APK
 # Run from the project root directory
@@ -24,7 +24,7 @@ SHOW_HELP=false
 
 show_help() {
     echo ""
-    echo -e "${CYAN}Vault App - Production Build Script${NC}"
+    echo -e "${CYAN}Vaulten App - Production Build Script${NC}"
     echo -e "${CYAN}====================================${NC}"
     echo ""
     echo -e "${YELLOW}Usage: ./build_prod.sh [options]${NC}"

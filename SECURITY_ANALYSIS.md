@@ -283,13 +283,13 @@ The only way data leaves the device is through the explicit export feature, whic
 ```mermaid
 graph LR
     subgraph "Stock Android Device"
-        APP[Vault App] --> KS[Android Keystore]
+        APP[Vaulten] --> KS[Android Keystore]
         KS --> TEE[Trusted Execution Environment]
         FRIDA[Frida] -.->|Blocked| APP
     end
 
     subgraph "Rooted Device"
-        APP2[Vault App] --> KS2[Android Keystore]
+        APP2[Vaulten] --> KS2[Android Keystore]
         KS2 --> TEE2[TEE - May be bypassed]
         FRIDA2[Frida] -->|Can Hook| APP2
         FRIDA2 -->|Intercept DEK| MEM[Memory]
@@ -834,7 +834,7 @@ The application HAS `INTERNET` permission, but uses it for a single, non-sensiti
 
 ### FaviconCache Implementation
 
-**File:** `app/src/main/java/com/vaultapp/data/cache/FaviconCache.kt`
+**File:** `app/src/main/java/com/motebaya/vaulten/data/cache/FaviconCache.kt`
 
 **Purpose:** Fetch and cache platform icons for visual identification in the UI.
 
@@ -868,7 +868,7 @@ https://www.google.com/s2/favicons?sz=64&domain=<url-encoded-domain>
 1. **Your IP address** - Standard for any HTTP request
 2. **Which platforms you've added** - Domain names only
 3. **When you add new platforms** - Request timestamps
-4. **App User-Agent** - Identifies as "VaultApp/1.0"
+4. **App User-Agent** - Identifies as "Vaulten/1.0"
 
 ### What Google CANNOT Learn
 
@@ -932,7 +932,7 @@ For users who want zero network activity, the favicon fetching could be disabled
 ```javascript
 // Hypothetical Frida script targeting this app
 Java.perform(function () {
-  var DekManager = Java.use("com.vaultapp.security.crypto.DekManager");
+  var DekManager = Java.use("com.motebaya.vaulten.security.crypto.DekManager");
 
   DekManager.getDek.implementation = function () {
     var dek = this.getDek();
@@ -1038,7 +1038,7 @@ A: From favicon requests only:
 - Your IP address (unavoidable for HTTP)
 - Domain names of platforms you add (e.g., "github.com")
 - Request timestamp
-- User-Agent string ("VaultApp/1.0")
+- User-Agent string ("Vaulten/1.0")
 
 ## Google does NOT receive: passwords, usernames, notes, PIN, passphrase, or any vault content.
 

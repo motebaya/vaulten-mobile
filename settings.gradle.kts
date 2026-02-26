@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SecureVault"
+rootProject.name = "Vaulten"
 include(":app")

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Vault App
+# Vaulten
 
 **A privacy-first, offline password manager for Android**
 
@@ -14,7 +14,7 @@
 
 ---
 
-Vault is a fully offline, security-focused credential manager built with modern Android development practices. Designed for users who prioritize privacy and data sovereignty, it operates entirely on-device without any cloud synchronization, telemetry, or external network calls. All sensitive data is encrypted using industry-standard AES-256-GCM encryption, with cryptographic keys protected by Android Keystore and user-defined passphrases. The application supports multiple credential types including standard accounts, social media profiles, cryptocurrency wallets, and Google accounts with comprehensive field support.
+Vaulten is a fully offline, security-focused credential manager built with modern Android development practices. Designed for users who prioritize privacy and data sovereignty, it operates entirely on-device without any cloud synchronization, telemetry, or external network calls. All sensitive data is encrypted using industry-standard AES-256-GCM encryption, with cryptographic keys protected by Android Keystore and user-defined passphrases. The application supports multiple credential types including standard accounts, social media profiles, cryptocurrency wallets, and Google accounts with comprehensive field support.
 
 ## Features
 
@@ -358,7 +358,7 @@ EOF
 vault-native/
 ├── app/
 │   ├── src/main/
-│   │   ├── java/com/vaultapp/
+│   │   ├── java/com/motebaya/vaulten/
 │   │   │   ├── data/
 │   │   │   │   ├── local/          # Room database, DAOs, entities
 │   │   │   │   ├── repository/     # Repository implementations
