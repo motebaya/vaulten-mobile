@@ -21,24 +21,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read version from pubspec.yaml
+      - name: Read version from build.gradle.kts
         id: ver
         shell: bash
         run: |
           set -euo pipefail
-          RAW=$(grep -E '^version:' pubspec.yaml | awk '{print $2}')
-          BASE="${RAW%%+*}"        # 2.0.0
-          BUILD="${RAW##*+}"       # 5  (if no +, will equal RAW)
-          if [[ "$RAW" == "$BASE" ]]; then
-            # no +buildNumber found; default b1
-            BUILD="1"
-          fi
-          TAG="v${BASE}-b${BUILD}"
-          echo "raw=$RAW" >> "$GITHUB_OUTPUT"
-          echo "base=$BASE" >> "$GITHUB_OUTPUT"
-          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Computed tag: $TAG"
+          VERSION=$(grep -E 'versionName\s*=' app/build.gradle.kts \
+            | head -1 \
+            | sed 's/.*"\(.*\)".*/\1/')
+          VERSION_CODE=$(grep -E 'versionCode\s*=' app/build.gradle.kts \
+            | head -1 \
+            | sed 's/[^0-9]//g')
+          TAG="v${VERSION}"
+          echo "version=$VERSION"       >> "$GITHUB_OUTPUT"
+          echo "versionCode=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"               >> "$GITHUB_OUTPUT"
+          echo "Computed tag: $TAG  (versionName=$VERSION, versionCode=$VERSION_CODE)"
 
       - name: Check if tag already exists
         id: tagcheck
@@ -59,6 +57,8 @@ jobs:
         shell: bash
         run: echo "Nothing to do."
 
+      # ── Environment ──────────────────────────────────────────────
+
       - name: Setup Java 17
         if: steps.tagcheck.outputs.exists == 'false'
         uses: actions/setup-java@v4
@@ -66,12 +66,9 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Setup Flutter (stable)
+      - name: Setup Gradle
         if: steps.tagcheck.outputs.exists == 'false'
-        uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          cache: true
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Cache Gradle
         if: steps.tagcheck.outputs.exists == 'false'
@@ -80,49 +77,38 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
+
+      # ── Signing ───────────────────────────────────────────────────
 
       - name: Decode and write keystore
         if: steps.tagcheck.outputs.exists == 'false'
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p android/app
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/pindl-release.jks
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > vaulten-release.jks
 
-      - name: Write android/key.properties
+      - name: Write keystore.properties
         if: steps.tagcheck.outputs.exists == 'false'
         shell: bash
         run: |
           set -euo pipefail
-          cat > android/key.properties <<EOF
+          cat > keystore.properties <<EOF
+          storeFile=vaulten-release.jks
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storeFile=pindl-release.jks
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
-      - name: Flutter pub get
-        if: steps.tagcheck.outputs.exists == 'false'
-        run: flutter pub get
+      # ── Build ─────────────────────────────────────────────────────
 
-      - name: Build lite (split per ABI)
+      - name: Build release APKs (split per-ABI + universal)
         if: steps.tagcheck.outputs.exists == 'false'
-        run: flutter build apk --release --flavor lite --dart-define=ENABLE_FFMPEG=false --split-per-abi
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Build ffmpeg (split per ABI)
-        if: steps.tagcheck.outputs.exists == 'false'
-        run: flutter build apk --release --flavor ffmpeg --dart-define=ENABLE_FFMPEG=true --split-per-abi
-
-      - name: Build lite (universal)
-        if: steps.tagcheck.outputs.exists == 'false'
-        run: flutter build apk --release --flavor lite --dart-define=ENABLE_FFMPEG=false
-
-      - name: Build ffmpeg (universal)
-        if: steps.tagcheck.outputs.exists == 'false'
-        run: flutter build apk --release --flavor ffmpeg --dart-define=ENABLE_FFMPEG=true
+      # ── Collect artifacts ─────────────────────────────────────────
 
       - name: Collect & rename APKs
         if: steps.tagcheck.outputs.exists == 'false'
@@ -130,39 +116,35 @@ jobs:
         run: |
           set -euo pipefail
 
-          VERSION="${{ steps.ver.outputs.base }}"
-          BUILD="b${{ steps.ver.outputs.build }}"
+          VERSION="${{ steps.ver.outputs.version }}"
+          APKDIR="app/build/outputs/apk/release"
           OUTDIR="dist"
           mkdir -p "$OUTDIR"
 
-          APKDIR="build/app/outputs/flutter-apk"
-
-          # Split-per-abi outputs:
-          # Format Flutter: app-<abi>-<flavor>-release.apk
-          for flavor in lite ffmpeg; do
-            for abi in armeabi-v7a arm64-v8a x86_64; do
-              src="${APKDIR}/app-${abi}-${flavor}-release.apk"
-
-              if [[ -f "$src" ]]; then
-                dst="${OUTDIR}/PinDL-${flavor}-${abi}-v${VERSION}-${BUILD}.apk"
-                cp -v "$src" "$dst"
-              else
-                echo "File not found: $src"
-              fi
-            done
-          done
-
-          # Universal outputs:
-          # app-<flavor>-release.apk
-          for flavor in lite ffmpeg; do
-            src="${APKDIR}/app-${flavor}-release.apk"
+          # Per-ABI outputs: app-<abi>-release.apk -> vaulten-<abi>-<version>.apk
+          for abi in armeabi-v7a arm64-v8a x86_64; do
+            src="${APKDIR}/app-${abi}-release.apk"
             if [[ -f "$src" ]]; then
-              dst="${OUTDIR}/PinDL-${flavor}-universal-v${VERSION}-${BUILD}.apk"
+              dst="${OUTDIR}/vaulten-${abi}-${VERSION}.apk"
               cp -v "$src" "$dst"
+            else
+              echo "::warning::File not found: $src"
             fi
           done
 
-          ls -alh "$OUTDIR"
+          # Universal output: app-universal-release.apk -> vaulten-universal-<version>.apk
+          src="${APKDIR}/app-universal-release.apk"
+          if [[ -f "$src" ]]; then
+            dst="${OUTDIR}/vaulten-universal-${VERSION}.apk"
+            cp -v "$src" "$dst"
+          else
+            echo "::warning::File not found: $src"
+          fi
+
+          echo "── Artifacts ──"
+          ls -lh "$OUTDIR"
+
+      # ── Release ───────────────────────────────────────────────────
 
       - name: Create and push tag
         if: steps.tagcheck.outputs.exists == 'false'
@@ -170,7 +152,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${{ steps.ver.outputs.tag }}"
-          git config user.name "github-actions"
+          git config user.name  "github-actions"
           git config user.email "github-actions@github.com"
           git tag "$TAG"
           git push origin "$TAG"
@@ -180,6 +162,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.tag }}
-          body_path: RELEASE_NOTES.md
+          name: Vaulten ${{ steps.ver.outputs.tag }}
+          body_path: releases/${{ steps.ver.outputs.version }}.md
           files: dist/*.apk
