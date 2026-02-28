@@ -92,7 +92,7 @@ function New-ReleaseKeystore {
         "-keyalg", "RSA",
         "-keysize", "2048",
         "-validity", "10000",
-        "-alias", "vault",
+        "-alias", "vaulten",
         "-storepass", $storePasswordText,
         "-keypass", $keyPasswordText,
         "-dname", $dname
@@ -113,7 +113,7 @@ function New-ReleaseKeystore {
 
 storeFile=vaulten-release.jks
 storePassword=$storePasswordText
-keyAlias=vault
+keyAlias=vaulten
 keyPassword=$keyPasswordText
 "@
         
