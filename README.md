@@ -1,6 +1,8 @@
 <div align="center">
 
-# Vaulten
+<img width="100" height="100" alt="ic_launcher-web" src="https://github.com/user-attachments/assets/e9eae6ba-18ec-439d-993f-63976f4e4b72" />
+
+## Vaulten
 
 **A privacy-first, offline password manager for Android**
 
@@ -442,6 +444,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-_Built with 🍵 by [Mochino](https://t.me/dvinchii)_
+Built with 🍵 by [davins](https://t.me/dvinchii)
 
 </div>
