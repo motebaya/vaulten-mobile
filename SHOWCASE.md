@@ -225,4 +225,4 @@ For more information, visit the [GitHub repository](https://github.com/motebaya/
 
 ---
 
-\_All videos recorded on Android device running Vaulten v2.1.0
+\_All videos recorded on Android device running Vaulten v2.2.0

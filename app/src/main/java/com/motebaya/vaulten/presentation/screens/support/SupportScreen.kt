@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.motebaya.vaulten.BuildConfig
 import com.motebaya.vaulten.presentation.components.AppScaffold
 
-private const val REPO_URL = "https://github.com/motebaya/vault-app-mobile"
+private const val REPO_URL = "https://github.com/motebaya/vaulten-mobile"
 
 /**
  * Support screen with app information and help.
