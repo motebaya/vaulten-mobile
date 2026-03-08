@@ -13,6 +13,7 @@ import com.motebaya.vaulten.data.cache.FaviconCache
 import com.motebaya.vaulten.presentation.components.ToastManager
 import com.motebaya.vaulten.presentation.components.credential.ViewCredentialState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -132,130 +133,143 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    @OptIn(FlowPreview::class)
     private fun loadCredentials() {
-        viewModelScope.launch {
-            combine(
-                credentialRepository.getAllCredentials(),
-                platformRepository.getAllPlatforms(),
-                searchQuery,
-                filterOption,
-                sortOption,
-                selectedPlatformIds,
-                dateRange
-            ) { params ->
-                val credentialsResult = params[0] as VaultResult<List<Credential>>
-                @Suppress("UNCHECKED_CAST")
-                val platforms = params[1] as List<Platform>
-                val query = params[2] as String
-                val filter = params[3] as CredentialFilterOption
-                val sort = params[4] as CredentialSortOption
-                @Suppress("UNCHECKED_CAST")
-                val platformIds = params[5] as Set<String>
-                val range = params[6] as DateRange
-                
-                when (credentialsResult) {
-                    is VaultResult.Success -> {
-                        val platformMap = platforms.associateBy { it.id }
-                        val allCredentials = credentialsResult.data
-                        
-                        // Build platform filter items with credential counts
-                        val platformCounts = allCredentials.groupingBy { it.platformId }.eachCount()
-                        val platformFilterItems = platforms.map { platform ->
-                            PlatformFilterItem(
-                                id = platform.id,
-                                name = platform.name,
-                                credentialCount = platformCounts[platform.id] ?: 0,
-                                isSelected = platformIds.contains(platform.id)
-                            )
-                        }.filter { it.credentialCount > 0 }
-                            .sortedByDescending { it.credentialCount }
-                        
-                        // Apply search filter
-                        var filtered = if (query.isBlank()) {
-                            allCredentials
-                        } else {
-                            allCredentials.filter { cred ->
-                                val platform = platformMap[cred.platformId]
-                                cred.username.contains(query, ignoreCase = true) ||
-                                        cred.email?.contains(query, ignoreCase = true) == true ||
-                                        platform?.name?.contains(query, ignoreCase = true) == true
-                            }
+        // Phase 1: Map domain models to UI models.
+        // Only re-runs when the underlying DB data changes (credential/platform add/edit/delete).
+        // With 5000 items this is the expensive step, so we avoid repeating it on every filter change.
+        val mappedData: Flow<MappedData> = combine(
+            credentialRepository.getAllCredentials(),
+            platformRepository.getAllPlatforms()
+        ) { credentialsResult, platforms ->
+            when (credentialsResult) {
+                is VaultResult.Success -> {
+                    val platformMap = platforms.associateBy { it.id }
+                    val allCredentials = credentialsResult.data
+
+                    // Build platform filter items with credential counts (selection state applied in phase 2)
+                    val platformCounts = allCredentials.groupingBy { it.platformId }.eachCount()
+                    val basePlatformFilterItems = platforms.map { platform ->
+                        PlatformFilterItem(
+                            id = platform.id,
+                            name = platform.name,
+                            credentialCount = platformCounts[platform.id] ?: 0,
+                            isSelected = false
+                        )
+                    }.filter { it.credentialCount > 0 }
+                        .sortedByDescending { it.credentialCount }
+
+                    // Map domain -> UI models once
+                    val uiModels = allCredentials.map { cred ->
+                        val platform = platformMap[cred.platformId]
+                        val displayUsername = when (cred.credentialType) {
+                            CredentialType.GOOGLE -> cred.accountName ?: cred.username
+                            CredentialType.WALLET -> cred.accountName ?: cred.username
+                            else -> cred.username
                         }
-                        
-                        // Apply type filter
-                        filtered = when (filter) {
-                            CredentialFilterOption.ALL -> filtered
-                            CredentialFilterOption.STANDARD -> filtered.filter { it.credentialType == CredentialType.STANDARD }
-                            CredentialFilterOption.SOCIAL -> filtered.filter { it.credentialType == CredentialType.SOCIAL }
-                            CredentialFilterOption.WALLET -> filtered.filter { it.credentialType == CredentialType.WALLET }
-                            CredentialFilterOption.GOOGLE -> filtered.filter { it.credentialType == CredentialType.GOOGLE }
-                        }
-                        
-                        // Apply platform filter (if any platforms selected)
-                        if (platformIds.isNotEmpty()) {
-                            filtered = filtered.filter { platformIds.contains(it.platformId) }
-                        }
-                        
-                        // Apply date range filter
-                        if (range.hasRange) {
-                            filtered = filtered.filter { range.contains(it.createdAt) }
-                        }
-                        
-                        // Apply sort
-                        val sorted = when (sort) {
-                            CredentialSortOption.NAME_ASC -> filtered.sortedBy { 
-                                platformMap[it.platformId]?.name?.lowercase() ?: "" 
-                            }
-                            CredentialSortOption.NAME_DESC -> filtered.sortedByDescending { 
-                                platformMap[it.platformId]?.name?.lowercase() ?: "" 
-                            }
-                            CredentialSortOption.NEWEST -> filtered.sortedByDescending { it.createdAt }
-                            CredentialSortOption.OLDEST -> filtered.sortedBy { it.createdAt }
-                        }
-                        
-                        val uiModels = sorted.map { cred ->
-                            val platform = platformMap[cred.platformId]
-                            
-                            // Fix Google credential display: use accountName as primary, email as secondary
-                            val displayUsername = when (cred.credentialType) {
-                                CredentialType.GOOGLE -> cred.accountName ?: cred.username
-                                CredentialType.WALLET -> cred.accountName ?: cred.username
-                                else -> cred.username
-                            }
-                            
-                            CredentialUiModel(
-                                id = cred.id,
-                                platformName = platform?.name ?: "Unknown",
-                                platformColor = platform?.color ?: "#6B7280",
-                                platformDomain = platform?.domain ?: "",
-                                username = displayUsername,
-                                email = cred.email,
-                                notes = cred.notes,
-                                credentialType = cred.credentialType,
-                                createdAt = cred.createdAt,
-                                lastEditedAt = cred.lastEditedAt
-                            )
-                        }
-                        FilteredResult(
-                            credentials = uiModels,
-                            totalCredentials = allCredentials.size,
-                            platformCount = platforms.size,
-                            filter = filter,
-                            sort = sort,
-                            platformFilterItems = platformFilterItems,
-                            dateRange = range
+                        CredentialUiModel(
+                            id = cred.id,
+                            platformId = cred.platformId,
+                            platformName = platform?.name ?: "Unknown",
+                            platformColor = platform?.color ?: "#6B7280",
+                            platformDomain = platform?.domain ?: "",
+                            username = displayUsername,
+                            email = cred.email,
+                            notes = cred.notes,
+                            credentialType = cred.credentialType,
+                            createdAt = cred.createdAt,
+                            lastEditedAt = cred.lastEditedAt
                         )
                     }
-                    is VaultResult.Error -> FilteredResult(
-                        credentials = emptyList(),
-                        totalCredentials = 0,
-                        platformCount = 0,
-                        filter = filter,
-                        sort = sort,
-                        platformFilterItems = emptyList(),
-                        dateRange = range
+
+                    MappedData(
+                        allItems = uiModels,
+                        basePlatformFilterItems = basePlatformFilterItems,
+                        totalCredentials = allCredentials.size,
+                        platformCount = platforms.size
                     )
                 }
+                is VaultResult.Error -> MappedData(
+                    allItems = emptyList(),
+                    basePlatformFilterItems = emptyList(),
+                    totalCredentials = 0,
+                    platformCount = 0
+                )
+            }
+        }
+
+        // Debounce search: avoid re-filtering 5000 items on every keystroke.
+        val debouncedSearch = searchQuery.debounce(300)
+
+        // Combine extra filter params into a single flow to stay within
+        // the typed combine() overload limit of 5 flows.
+        val extraFilters = combine(selectedPlatformIds, dateRange) { ids, range -> ids to range }
+
+        // Phase 2: Filter and sort the pre-mapped UI models.
+        // Runs on every filter/sort/search change but only does lightweight
+        // string comparisons and list reordering — no domain->UI mapping.
+        viewModelScope.launch {
+            combine(
+                mappedData,
+                debouncedSearch,
+                filterOption,
+                sortOption,
+                extraFilters
+            ) { mapped, query, filter, sort, (platformIds, range) ->
+
+                // Apply platform selection state
+                val platformFilterItems = mapped.basePlatformFilterItems.map { item ->
+                    item.copy(isSelected = platformIds.contains(item.id))
+                }
+
+                // Apply search filter
+                var filtered = if (query.isBlank()) {
+                    mapped.allItems
+                } else {
+                    val lowerQuery = query.lowercase()
+                    mapped.allItems.filter { cred ->
+                        cred.username.lowercase().contains(lowerQuery) ||
+                                cred.email?.lowercase()?.contains(lowerQuery) == true ||
+                                cred.platformName.lowercase().contains(lowerQuery)
+                    }
+                }
+
+                // Apply type filter
+                filtered = when (filter) {
+                    CredentialFilterOption.ALL -> filtered
+                    CredentialFilterOption.STANDARD -> filtered.filter { it.credentialType == CredentialType.STANDARD }
+                    CredentialFilterOption.SOCIAL -> filtered.filter { it.credentialType == CredentialType.SOCIAL }
+                    CredentialFilterOption.WALLET -> filtered.filter { it.credentialType == CredentialType.WALLET }
+                    CredentialFilterOption.GOOGLE -> filtered.filter { it.credentialType == CredentialType.GOOGLE }
+                }
+
+                // Apply platform filter
+                if (platformIds.isNotEmpty()) {
+                    filtered = filtered.filter { platformIds.contains(it.platformId) }
+                }
+
+                // Apply date range filter
+                if (range.hasRange) {
+                    filtered = filtered.filter { range.contains(it.createdAt) }
+                }
+
+                // Apply sort
+                val sorted = when (sort) {
+                    CredentialSortOption.NAME_ASC -> filtered.sortedBy { it.platformName.lowercase() }
+                    CredentialSortOption.NAME_DESC -> filtered.sortedByDescending { it.platformName.lowercase() }
+                    CredentialSortOption.NEWEST -> filtered.sortedByDescending { it.createdAt }
+                    CredentialSortOption.OLDEST -> filtered.sortedBy { it.createdAt }
+                }
+
+                FilteredResult(
+                    credentials = sorted,
+                    totalCredentials = mapped.totalCredentials,
+                    platformCount = mapped.platformCount,
+                    filter = filter,
+                    sort = sort,
+                    platformFilterItems = platformFilterItems,
+                    dateRange = range
+                )
             }.collect { result ->
                 _uiState.update {
                     it.copy(
@@ -272,7 +286,17 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
-    
+
+    /**
+     * Pre-mapped data from Phase 1. Cached until DB changes.
+     */
+    private data class MappedData(
+        val allItems: List<CredentialUiModel>,
+        val basePlatformFilterItems: List<PlatformFilterItem>,
+        val totalCredentials: Int,
+        val platformCount: Int
+    )
+
     private data class FilteredResult(
         val credentials: List<CredentialUiModel>,
         val totalCredentials: Int,
