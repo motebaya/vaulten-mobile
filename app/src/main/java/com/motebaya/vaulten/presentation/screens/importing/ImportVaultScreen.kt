@@ -3,7 +3,11 @@ package com.motebaya.vaulten.presentation.screens.importing
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -12,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -54,7 +59,14 @@ fun ImportVaultScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    
+    val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+
+    // Determine if current state needs scrolling (preview-related states)
+    val isPreviewState = uiState.state is ImportState.Preview ||
+        uiState.state is ImportState.Decrypting ||
+        uiState.state is ImportState.PassphraseError
+
     // SAF Open Document launcher for .zip files
     val openDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -88,6 +100,16 @@ fun ImportVaultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    focusManager.clearFocus()
+                }
+                .then(
+                    if (isPreviewState) Modifier.verticalScroll(scrollState)
+                    else Modifier
+                )
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -423,7 +445,7 @@ private fun ColumnScope.PreviewContent(
         }
     }
     
-    Spacer(modifier = Modifier.weight(0.1f))
+    Spacer(modifier = Modifier.height(16.dp))
     
     Icon(
         Icons.Default.Verified,
@@ -627,7 +649,7 @@ private fun ColumnScope.PreviewContent(
         )
     }
     
-    Spacer(modifier = Modifier.weight(1f))
+    Spacer(modifier = Modifier.height(24.dp))
     
     Row(
         modifier = Modifier.fillMaxWidth(),
