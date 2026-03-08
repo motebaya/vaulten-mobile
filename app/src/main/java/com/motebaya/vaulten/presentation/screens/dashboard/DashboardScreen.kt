@@ -1,7 +1,9 @@
 package com.motebaya.vaulten.presentation.screens.dashboard
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +59,7 @@ fun DashboardScreen(
     val showBiometricPrompt by viewModel.showBiometricPrompt.collectAsState()
     
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     // Use findActivity() extension to properly unwrap context to FragmentActivity
     val activity = context.findActivity()
     
@@ -174,6 +178,12 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    focusManager.clearFocus()
+                }
         ) {
             // Search bar
             OutlinedTextField(
@@ -234,7 +244,10 @@ fun DashboardScreen(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(uiState.credentials) { credential ->
+                        items(
+                            items = uiState.credentials,
+                            key = { it.id }
+                        ) { credential ->
                             CredentialCard(
                                 credential = credential,
                                 faviconCache = viewModel.faviconCache,
@@ -305,7 +318,7 @@ private fun CredentialCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(Unit) {
+            .pointerInput(credential.id) {
                 detectTapGestures(
                     onTap = { /* Single tap: no action per spec */ },
                     onDoubleTap = { onDoubleTap() }
@@ -446,6 +459,7 @@ private fun CredentialCard(
  */
 data class CredentialUiModel(
     val id: String,
+    val platformId: String,
     val platformName: String,
     val platformColor: String,
     val platformDomain: String = "",
