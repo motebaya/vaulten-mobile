@@ -3,6 +3,7 @@ package com.motebaya.vaulten.presentation.screens.platform
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,6 +52,7 @@ fun PlatformScreen(
     val showBiometricPrompt by viewModel.showBiometricPrompt.collectAsState()
     
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     // Use findActivity() extension to properly unwrap context to FragmentActivity
     val activity = context.findActivity()
     
@@ -87,6 +90,12 @@ fun PlatformScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    focusManager.clearFocus()
+                }
         ) {
             // Search bar with filter button
             Row(
