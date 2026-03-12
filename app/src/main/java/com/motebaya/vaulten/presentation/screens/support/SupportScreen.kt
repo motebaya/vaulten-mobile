@@ -18,25 +18,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.motebaya.vaulten.BuildConfig
-import com.motebaya.vaulten.presentation.components.AppScaffold
+import com.motebaya.vaulten.presentation.components.PageScaffold
 
 private const val REPO_URL = "https://github.com/motebaya/vaulten-mobile"
 
 /**
  * Support screen with app information and help.
+ * Hosted inside MainScreen's HorizontalPager.
  * Fully offline - no external links or network calls.
  */
 @Composable
 fun SupportScreen(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
     onLock: () -> Unit
 ) {
-    AppScaffold(
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        onLock = onLock,
-        title = "Support"
+    PageScaffold(
+        title = "Support",
+        onLock = onLock
     ) { padding ->
         Column(
             modifier = Modifier
