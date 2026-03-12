@@ -1,5 +1,11 @@
 package com.motebaya.vaulten.presentation.screens.platform
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -9,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,7 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.motebaya.vaulten.data.local.preferences.PlatformSortField
 import com.motebaya.vaulten.domain.entity.Platform
-import com.motebaya.vaulten.presentation.components.AppScaffold
+import com.motebaya.vaulten.presentation.components.PageScaffold
 import com.motebaya.vaulten.presentation.components.StatsInfoBar
 import com.motebaya.vaulten.presentation.components.platform.PlatformIcon
 import com.motebaya.vaulten.data.cache.FaviconCache
@@ -36,14 +43,14 @@ import java.time.format.FormatStyle
 
 /**
  * Platform management screen.
+ * Hosted inside MainScreen's HorizontalPager.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlatformScreen(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
     onLock: () -> Unit,
     onForgotPin: () -> Unit = {},
+    isFabVisible: Boolean = true,
     viewModel: PlatformViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -73,117 +80,138 @@ fun PlatformScreen(
         }
     }
 
-    AppScaffold(
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        onLock = onLock,
+    PageScaffold(
         title = "Platforms",
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { viewModel.onShowAddDialog() }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add platform")
-            }
-        }
+        onLock = onLock
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    focusManager.clearFocus()
-                }
-        ) {
-            // Search bar with filter button
-            Row(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = viewModel::onSearchQueryChange,
-                    label = { Text("Search platforms") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null)
-                    },
-                    trailingIcon = {
-                        if (uiState.searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                // Filter button with badge if filter is active
-                // selectedTypes empty means all are selected (no filter)
-                val hasActiveFilter = uiState.selectedTypes.isNotEmpty() || 
-                    uiState.sortField != PlatformSortField.NAME || 
-                    !uiState.sortAscending
-                
-                FilledTonalIconButton(
-                    onClick = { viewModel.onShowFilterSheet() }
-                ) {
-                    BadgedBox(
-                        badge = {
-                            if (hasActiveFilter) {
-                                Badge()
-                            }
-                        }
+                    .fillMaxSize()
+                    .padding(padding)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
                     ) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter and sort")
+                        focusManager.clearFocus()
+                    }
+            ) {
+                // Search bar with filter button - semi-rounded
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = viewModel::onSearchQueryChange,
+                        label = { Text("Search platforms") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null)
+                        },
+                        trailingIcon = {
+                            if (uiState.searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Filter button with badge if filter is active
+                    // selectedTypes empty means all are selected (no filter)
+                    val hasActiveFilter = uiState.selectedTypes.isNotEmpty() || 
+                        uiState.sortField != PlatformSortField.NAME || 
+                        !uiState.sortAscending
+                    
+                    FilledTonalIconButton(
+                        onClick = { viewModel.onShowFilterSheet() }
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (hasActiveFilter) {
+                                    Badge()
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.FilterList, contentDescription = "Filter and sort")
+                        }
+                    }
+                }
+                
+                // Stats bar (same as Dashboard)
+                if (!uiState.isLoading) {
+                    StatsInfoBar(
+                        totalCredentials = uiState.totalCredentials,
+                        platformCount = uiState.totalPlatforms
+                    )
+                }
+
+                when {
+                    uiState.isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    uiState.platforms.isEmpty() -> {
+                        EmptyPlatformState(
+                            onAddFirst = { viewModel.onShowAddDialog() }
+                        )
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 16.dp,
+                                bottom = 96.dp // Extra padding for floating nav bar
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(uiState.platforms, key = { it.id }) { platform ->
+                                PlatformCard(
+                                    platform = platform,
+                                    faviconCache = viewModel.faviconCache,
+                                    onEdit = { viewModel.onEditPlatformRequest(platform) },
+                                    onDelete = { viewModel.onDeletePlatformRequest(platform) }
+                                )
+                            }
+                        }
                     }
                 }
             }
             
-            // Stats bar (same as Dashboard)
-            if (!uiState.isLoading) {
-                StatsInfoBar(
-                    totalCredentials = uiState.totalCredentials,
-                    platformCount = uiState.totalPlatforms
-                )
-            }
-
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-
-                uiState.platforms.isEmpty() -> {
-                    EmptyPlatformState(
-                        onAddFirst = { viewModel.onShowAddDialog() }
-                    )
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(uiState.platforms, key = { it.id }) { platform ->
-                            PlatformCard(
-                                platform = platform,
-                                faviconCache = viewModel.faviconCache,
-                                onEdit = { viewModel.onEditPlatformRequest(platform) },
-                                onDelete = { viewModel.onDeletePlatformRequest(platform) }
-                            )
-                        }
-                    }
+            // Animated FAB - positioned above floating nav bar
+            AnimatedVisibility(
+                visible = isFabVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(300)
+                ) + fadeIn(animationSpec = tween(300)),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(300)
+                ) + fadeOut(animationSpec = tween(300)),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 88.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = { viewModel.onShowAddDialog() }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add platform")
                 }
             }
         }
