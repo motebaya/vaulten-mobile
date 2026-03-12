@@ -1,5 +1,11 @@
 package com.motebaya.vaulten.presentation.screens.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -9,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -28,7 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.motebaya.vaulten.data.cache.FaviconCache
 import com.motebaya.vaulten.domain.entity.Credential
 import com.motebaya.vaulten.domain.entity.CredentialType
-import com.motebaya.vaulten.presentation.components.AppScaffold
+import com.motebaya.vaulten.presentation.components.PageScaffold
 import com.motebaya.vaulten.presentation.components.StatsInfoBar
 import com.motebaya.vaulten.presentation.components.credential.ViewCredentialModal
 import com.motebaya.vaulten.presentation.components.platform.PlatformIcon
@@ -41,14 +48,14 @@ import java.time.format.FormatStyle
 
 /**
  * Main dashboard screen showing all credentials.
+ * Hosted inside MainScreen's HorizontalPager.
  */
 @Composable
 fun DashboardScreen(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
     onNavigateToAdd: () -> Unit,
     onForgotPin: () -> Unit,
     onLock: () -> Unit,
+    isFabVisible: Boolean = true,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -163,100 +170,121 @@ fun DashboardScreen(
         )
     }
     
-    AppScaffold(
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        onLock = onLock,
+    PageScaffold(
         title = "Credentials",
-        floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToAdd) {
-                Icon(Icons.Default.Add, contentDescription = "Add credential")
-            }
-        }
+        onLock = onLock
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    focusManager.clearFocus()
-                }
-        ) {
-            // Search bar
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = viewModel::onSearchQueryChange,
-                label = { Text("Search credentials") },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                singleLine = true
-            )
-            
-            // Stats bar
-            if (!uiState.isLoading) {
-                StatsInfoBar(
-                    totalCredentials = uiState.totalCredentials,
-                    platformCount = uiState.platformCount
-                )
-                
-                // Filter and sort row
-                FilterSortRow(
-                    selectedFilter = uiState.selectedFilter,
-                    selectedSort = uiState.selectedSort,
-                    platformFilterItems = uiState.platformFilterItems,
-                    dateRange = uiState.dateRange,
-                    onFilterChange = viewModel::onFilterChange,
-                    onSortChange = viewModel::onSortChange,
-                    onShowPlatformFilter = viewModel::onShowPlatformFilterSheet,
-                    onShowDateRange = viewModel::onShowDateRangePicker,
-                    onClearDateRange = viewModel::onClearDateRange
-                )
-            }
-            
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(padding)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
                     ) {
-                        CircularProgressIndicator()
+                        focusManager.clearFocus()
                     }
+            ) {
+                // Search bar - semi-rounded
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = viewModel::onSearchQueryChange,
+                    label = { Text("Search credentials") },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    singleLine = true
+                )
+                
+                // Stats bar
+                if (!uiState.isLoading) {
+                    StatsInfoBar(
+                        totalCredentials = uiState.totalCredentials,
+                        platformCount = uiState.platformCount
+                    )
+                    
+                    // Filter and sort row
+                    FilterSortRow(
+                        selectedFilter = uiState.selectedFilter,
+                        selectedSort = uiState.selectedSort,
+                        platformFilterItems = uiState.platformFilterItems,
+                        dateRange = uiState.dateRange,
+                        onFilterChange = viewModel::onFilterChange,
+                        onSortChange = viewModel::onSortChange,
+                        onShowPlatformFilter = viewModel::onShowPlatformFilterSheet,
+                        onShowDateRange = viewModel::onShowDateRangePicker,
+                        onClearDateRange = viewModel::onClearDateRange
+                    )
                 }
                 
-                uiState.credentials.isEmpty() -> {
-                    EmptyState(onAddFirst = onNavigateToAdd)
-                }
-                
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(
-                            items = uiState.credentials,
-                            key = { it.id }
-                        ) { credential ->
-                            CredentialCard(
-                                credential = credential,
-                                faviconCache = viewModel.faviconCache,
-                                onDoubleTap = { viewModel.onViewCredential(credential.id) },
-                                onEdit = { viewModel.onEditCredentialRequest(credential.id) },
-                                onDelete = { viewModel.onDeleteCredentialRequest(credential.id) }
-                            )
+                when {
+                    uiState.isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
                     }
+                    
+                    uiState.credentials.isEmpty() -> {
+                        EmptyState(onAddFirst = onNavigateToAdd)
+                    }
+                    
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 16.dp,
+                                bottom = 96.dp // Extra padding for floating nav bar
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                items = uiState.credentials,
+                                key = { it.id }
+                            ) { credential ->
+                                CredentialCard(
+                                    credential = credential,
+                                    faviconCache = viewModel.faviconCache,
+                                    onDoubleTap = { viewModel.onViewCredential(credential.id) },
+                                    onEdit = { viewModel.onEditCredentialRequest(credential.id) },
+                                    onDelete = { viewModel.onDeleteCredentialRequest(credential.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Animated FAB - positioned above floating nav bar
+            AnimatedVisibility(
+                visible = isFabVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(300)
+                ) + fadeIn(animationSpec = tween(300)),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(300)
+                ) + fadeOut(animationSpec = tween(300)),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 88.dp)
+            ) {
+                FloatingActionButton(onClick = onNavigateToAdd) {
+                    Icon(Icons.Default.Add, contentDescription = "Add credential")
                 }
             }
         }
