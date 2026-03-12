@@ -14,26 +14,35 @@ import com.motebaya.vaulten.data.session.SessionManager
 import com.motebaya.vaulten.data.session.SessionState
 import com.motebaya.vaulten.presentation.screens.credential.AddCredentialScreen
 import com.motebaya.vaulten.presentation.screens.changepin.ChangePinScreen
-import com.motebaya.vaulten.presentation.screens.dashboard.DashboardScreen
 import com.motebaya.vaulten.presentation.screens.export.ExportVaultScreen
 import com.motebaya.vaulten.presentation.screens.importing.ImportVaultScreen
 import com.motebaya.vaulten.presentation.screens.importpinsetup.ImportPinSetupScreen
-import com.motebaya.vaulten.presentation.screens.platform.PlatformScreen
+import com.motebaya.vaulten.presentation.screens.main.MainScreen
 import com.motebaya.vaulten.presentation.screens.resetpin.ResetPinScreen
-import com.motebaya.vaulten.presentation.screens.settings.SettingsScreen
 import com.motebaya.vaulten.presentation.screens.setup.SetupScreen
-import com.motebaya.vaulten.presentation.screens.support.SupportScreen
 import com.motebaya.vaulten.presentation.screens.unlock.UnlockScreen
 
 /**
  * Navigation routes for the Vault app.
+ *
+ * The 4 main authenticated screens (Credentials, Platforms, Settings, Support)
+ * are now hosted inside a single [Main] route via HorizontalPager in MainScreen.
+ * Legacy individual routes (Dashboard, Platforms, Settings, Support) are kept
+ * as constants for any remaining internal references but are no longer registered
+ * as separate composable destinations.
  */
 sealed class VaultRoute(val route: String) {
     data object Unlock : VaultRoute("unlock")
     data object Setup : VaultRoute("setup")
+    /** Single destination hosting all 4 main pages in a HorizontalPager. */
+    data object Main : VaultRoute("main")
+    @Deprecated("Use Main instead. Kept for internal reference only.")
     data object Dashboard : VaultRoute("dashboard")
+    @Deprecated("Use Main instead. Kept for internal reference only.")
     data object Settings : VaultRoute("settings")
+    @Deprecated("Use Main instead. Kept for internal reference only.")
     data object Platforms : VaultRoute("platforms")
+    @Deprecated("Use Main instead. Kept for internal reference only.")
     data object Support : VaultRoute("support")
     data object ResetPin : VaultRoute("reset-pin")
     data object ChangePin : VaultRoute("change-pin")
@@ -105,14 +114,14 @@ fun VaultNavHost(
                     }
                 }
                 
-                // Only navigate to dashboard if currently on unlock/setup/import-pin-setup screen
+                // Only navigate to main screen if currently on unlock/setup/import-pin-setup screen
                 // Don't navigate away from Export or Import screens - let them show their success/error states
                 val currentRoute = navController.currentDestination?.route
                 if (currentRoute == VaultRoute.Unlock.route || 
                     currentRoute == VaultRoute.Setup.route ||
                     currentRoute == VaultRoute.ResetPin.route ||
                     currentRoute == VaultRoute.ImportPinSetup.route) {
-                    navController.navigate(VaultRoute.Dashboard.route) {
+                    navController.navigate(VaultRoute.Main.route) {
                         popUpTo(VaultRoute.Unlock.route) { inclusive = true }
                     }
                 }
@@ -191,53 +200,11 @@ fun VaultNavHost(
             )
         }
         
-        // Dashboard Screen (with sidebar via AppScaffold)
-        composable(VaultRoute.Dashboard.route) {
-            DashboardScreen(
-                currentRoute = "dashboard",
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        launchSingleTop = true
-                    }
-                },
+        // Main Screen - hosts Credentials, Platforms, Settings, Support in a HorizontalPager
+        composable(VaultRoute.Main.route) {
+            MainScreen(
                 onNavigateToAdd = {
                     navController.navigate(VaultRoute.CredentialAdd.route)
-                },
-                onForgotPin = {
-                    navController.navigate(VaultRoute.ResetPin.route)
-                },
-                onLock = {
-                    sessionManager.lockVault()
-                }
-            )
-        }
-        
-        // Platforms Screen (with sidebar via AppScaffold)
-        composable(VaultRoute.Platforms.route) {
-            PlatformScreen(
-                currentRoute = "platforms",
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        launchSingleTop = true
-                    }
-                },
-                onLock = {
-                    sessionManager.lockVault()
-                },
-                onForgotPin = {
-                    navController.navigate(VaultRoute.ResetPin.route)
-                }
-            )
-        }
-        
-        // Settings Screen (with sidebar via AppScaffold)
-        composable(VaultRoute.Settings.route) {
-            SettingsScreen(
-                currentRoute = "settings",
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        launchSingleTop = true
-                    }
                 },
                 onExportVault = {
                     navController.navigate(VaultRoute.ExportVault.route)
@@ -248,20 +215,8 @@ fun VaultNavHost(
                 onChangePin = {
                     navController.navigate(VaultRoute.ChangePin.route)
                 },
-                onLock = {
-                    sessionManager.lockVault()
-                }
-            )
-        }
-        
-        // Support Screen (with sidebar via AppScaffold)
-        composable(VaultRoute.Support.route) {
-            SupportScreen(
-                currentRoute = "support",
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        launchSingleTop = true
-                    }
+                onForgotPin = {
+                    navController.navigate(VaultRoute.ResetPin.route)
                 },
                 onLock = {
                     sessionManager.lockVault()
@@ -298,11 +253,11 @@ fun VaultNavHost(
         composable(VaultRoute.ExportVault.route) {
             ExportVaultScreen(
                 onNavigateBack = {
-                    // Navigate to Settings instead of popBackStack
+                    // Navigate to Main instead of popBackStack
                     // because the back stack may be cleared if export restored from pending flow
                     if (!navController.popBackStack()) {
-                        navController.navigate(VaultRoute.Settings.route) {
-                            popUpTo(VaultRoute.Dashboard.route) { inclusive = false }
+                        navController.navigate(VaultRoute.Main.route) {
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 }
