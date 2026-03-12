@@ -17,17 +17,16 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.motebaya.vaulten.BuildConfig
-import com.motebaya.vaulten.presentation.components.AppScaffold
+import com.motebaya.vaulten.presentation.components.PageScaffold
 import com.motebaya.vaulten.security.BiometricAuthHelper
 import com.motebaya.vaulten.util.findActivity
 
 /**
  * Settings screen for vault configuration.
+ * Hosted inside MainScreen's HorizontalPager.
  */
 @Composable
 fun SettingsScreen(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
     onExportVault: () -> Unit,
     onImportVault: () -> Unit,
     onChangePin: () -> Unit,
@@ -65,11 +64,9 @@ fun SettingsScreen(
         )
     }
     
-    AppScaffold(
-        currentRoute = currentRoute,
-        onNavigate = onNavigate,
-        onLock = onLock,
-        title = "Settings"
+    PageScaffold(
+        title = "Settings",
+        onLock = onLock
     ) { padding ->
         Column(
             modifier = Modifier
